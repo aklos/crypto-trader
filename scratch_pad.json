@@ -1,0 +1,23 @@
+{
+  "symbol": "PROMBUSD",
+  "priceChange": "0.22540000",
+  "priceChangePercent": "11.214",
+  "weightedAvgPrice": "2.36407322",
+  "prevClosePrice": "0.00000000",
+  "lastPrice": "2.23540000",
+  "lastQty": "19.34000000",
+  "bidPrice": "2.23320000",
+  "bidQty": "284.00000000",
+  "askPrice": "2.24120000",
+  "askQty": "18.89000000",
+  "openPrice": "2.01000000",
+  "highPrice": "2.69310000",
+  "lowPrice": "2.01000000",
+  "volume": "213099.24000000",
+  "quoteVolume": "503782.20747000",
+  "openTime": 1606340251636,
+  "closeTime": 1606426651636,
+  "firstId": 0,
+  "lastId": 2815,
+  "count": 2816
+}
