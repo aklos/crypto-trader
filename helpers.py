@@ -9,17 +9,17 @@ def interval_str_to_time(interval_str):
         return 5
     if interval_str == '15m':
         return 15
-    if interval_str == '1d':
-        return 60 * 24
+    if interval_str == '30m':
+        return 30
 
-def min_timestamp(interval_str):
+def max_candles(interval_str):
     if interval_str == '1m':
-        return dt.datetime.now() - dt.timedelta(hours=3)
+        return 100
     if interval_str == '3m':
-        return dt.datetime.now() - dt.timedelta(hours=12)
+        return 80
     if interval_str == '5m':
-        return dt.datetime.now() - dt.timedelta(hours=18)
+        return 60
     if interval_str == '15m':
-        return dt.datetime.now() - dt.timedelta(hours=36)
-    if interval_str == '1d':
-        return dt.datetime.now() - dt.timedelta(days=60)
+        return 60
+    if interval_str == '30m':
+        return 60

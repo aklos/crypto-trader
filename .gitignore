@@ -1,6 +1,7 @@
 venv
 .env
 __pycache__
-snapshots
-tracking
-bets
+possible_consolidations
+market_graphs
+trackbook.json
+trades.json
