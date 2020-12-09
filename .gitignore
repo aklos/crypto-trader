@@ -3,6 +3,4 @@ venv
 __pycache__
 graphs
 test_data
-trackbook.json
-trades.json
-tradebook.json
+tradebook.csv

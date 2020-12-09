@@ -47,13 +47,10 @@ class Robot():
         self.trading = False
         self.trade = {}
         try:
-            self.tradebook = pd.read_csv('./tradebook.csv')
+            self.tradebook = pd.read_csv('./tradebook.csv', index=False)
         except:
             self.tradebook = None
-        try:
-            os.system('rm ./graphs/*.jpg')
-        except:
-            pass
+        os.system('rm ./graphs/*.jpg')
 
     def get_portfolio(self):
         return {
@@ -131,7 +128,7 @@ class Robot():
             self.tradebook = self.tradebook.append(data, ignore_index=True)
         else:
             self.tradebook = pd.DataFrame([data])
-        self.tradebook.to_csv('./tradebook.csv')
+        self.tradebook.to_csv('./tradebook.csv', index=False)
 
     def buy_coins(self):
         # TODO: Setup marketable limit order
@@ -194,8 +191,8 @@ class Robot():
                 price_range = max([x['close'] for x in candles]) - min([x['close'] for x in candles])
                 moving_avgs = self.get_moving_averages(candles, 10)
 
-                # Skip if trending less than 5% upwards
-                if (moving_avgs[-1]['close'] - moving_avgs[-2]['close']) / price_range < 0.05:
+                # Skip if trending less than 10% upwards for last 20% of graph
+                if (moving_avgs[-1]['close'] - moving_avgs[-3]['close']) / price_range < 0.1:
                     continue
 
                 # Find extremas
@@ -236,7 +233,7 @@ class Robot():
                         df_candles.to_csv('./test_data/{}_{}_{}_candles.csv'.format(dt.datetime.now().strftime('%Y%m%d_%H%M'), market_symbol, interval))
                         return
                 except AssertionError as e:
-                    print('-', e)
+                    print('{} -'.format(interval), e)
                 except Exception as e:
                     print('ERROR(pullback)', e)
         print('Done')
@@ -324,7 +321,7 @@ class Robot():
                     else:
                         break
         # Should be start of jagged uptrend
-        return 2 <= chain <= 4
+        return 1 <= chain <= 4
 
     def is_acceptable_risk_reward(self, market_symbol, buy_price, price_range, stop_price, profit_price):
         fee = self.portfolio['trade_fee']
@@ -357,19 +354,35 @@ class Robot():
         # Last candle should be bullish
         assert candles[-1]['close'] > extremas[-1]['close'], 'last candle not bullish'
 
-        # C volume should be less than or equal to avg
-        assert candles[-1]['volume'] <= avg_volume, 'above avg volume'
+        # C volume should be less than or equal to avg (+2%)
+        assert extremas[-1]['volume'] / avg_volume <= 1.02, 'above avg volume'
+
+        # Normalize
+        max_dt = max([x['dt'].timestamp() for x in extremas])
+        min_dt = min([x['dt'].timestamp() for x in extremas])
+        max_close = max([x['close'] for x in extremas])
+        min_close = min([x['close'] for x in extremas])
+        norm_extremas = [{ 'dt': (x['dt'].timestamp() - min_dt) / (max_dt - min_dt), 'close': (x['close'] - min_close) / (max_close - min_close) } for x in extremas]
+
+        n_a = norm_extremas[-3]
+        n_b = norm_extremas[-2]
+        n_c = norm_extremas[-1]
+
+        # Calculate lengths of segments 
+        # math.sqrt(((y2 - y1) ** 2)) + ((x2 - x1) ** 2))
+        len_ab = abs(math.sqrt(((n_b['close'] - n_a['close']) ** 2) + ((n_b['dt'] - n_a['dt']) ** 2)))
+        len_bc = abs(math.sqrt(((n_c['close'] - n_b['close']) ** 2) + ((n_c['dt'] - n_b['dt']) ** 2)))
+
+        print(len_ab, len_bc, len_bc / len_ab)
+        print('a', n_a)
+        print('b', n_b)
+        print('c', n_c)
+
+        # Should match fibonacci rule
+        assert 0.38 <= len_bc / len_ab <= 0.618, 'failed fibonacci rule'
 
         a = extremas[-3]
         b = extremas[-2]
         c = extremas[-1]
-
-        # Calculate lengths of segments 
-        # math.sqrt(((y2 - y1) ** 2)) + ((x2 - x1) ** 2))
-        len_ab = abs(math.sqrt(((b['close'] - a['close']) ** 2) + ((b['dt'].timestamp() - a['dt'].timestamp()) ** 2)))
-        len_bc = abs(math.sqrt(((c['close'] - b['close']) ** 2) + ((c['dt'].timestamp() - b['dt'].timestamp()) ** 2)))
-
-        # Should match fibonacci rule
-        assert 0.38 <= len_bc / len_ab <= 0.618, 'failed fibonacci rule'
 
         return [a, b, c]
