@@ -1,0 +1,11 @@
+- top interval should be trending up 10% (across 2 segments) and trending up 30% (across 5 segments)
+ 
+- smaller interval should be trending up in majority, not just at the end?
+
+- interval MA should be *changing* by +10% or stable at 10%
+
+- C should be close to MA, not strictly above
+
+- use moving volume average instead of strict avg (might not need this actually)
+
+*** MA RATE OF CHANGE UPWARDS IS 100x BETTER THAN ACTUAL TREND ***

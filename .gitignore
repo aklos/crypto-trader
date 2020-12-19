@@ -1,6 +1,6 @@
 venv
 .env
 __pycache__
-graphs
+graphs*
 test_data
 tradebook.csv

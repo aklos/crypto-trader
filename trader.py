@@ -20,7 +20,6 @@ import time
 import datetime as dt
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import itertools
@@ -29,20 +28,18 @@ from itertools import chain
 from scipy.signal import argrelextrema
 from bnc import client
 
-plt.style.use('seaborn-whitegrid')
-
 min_balance = 90
 
 ignore_list = ['XRPUPUSDT']
 
 min_change_percent = 2
-min_volume = 500000
-min_trades = 50000
+min_volume = 500000 / 2
+min_trades = 50000 / 2
 min_atr = 0.5
 
-class Robot():
+class Trader():
     def __init__(self, *args, **kwargs):
-        super(Robot, self).__init__(*args, **kwargs)
+        super(Trader, self).__init__(*args, **kwargs)
         self.trading = False
         self.trade = {}
         try:
@@ -122,8 +119,6 @@ class Robot():
         if prev_candle['close'] > self.trade['resistance']:
             self.trade['crossed_resistance'] = True
 
-        print('curr', curr_candle['close'], 'stop', self.trade['stop_price'], 'profit', self.trade['profit_price'], 'resistance', self.trade['resistance'], 'crossed', self.trade['crossed_resistance'])
-
         # TODO: Include volume in reversal check?
         if self.trade['crossed_resistance'] and prev_candle['close'] < self.trade['resistance'] and curr_candle['close'] < prev_candle['close']:
             self.sell_coins(curr_candle['close'], True)
@@ -177,28 +172,19 @@ class Robot():
         self.trading = False
 
     def scan_markets(self):
-        # TODO: Try with 30m snapshot
-        intervals = ['3m', '1m']
-        os.system('rm ./graphs/*.jpg > /dev/null 2>&1')
+        intervals = ['5m', '3m', '1m']
 
         for market_symbol in self.markets:
             print('=> Searching', market_symbol)
 
             # Get overall market trend
-            # TODO: Include latest unfinished candle or not?
-            candles = client.get_klines(symbol=market_symbol, interval='5m', limit=100)
+            candles = client.get_klines(symbol=market_symbol, interval='30m', limit=100)
             candles = [{ 'dt': dt.datetime.fromtimestamp(x[0] / 1000), 'close': float(x[4]), 'volume': float(x[5]) } for x in candles]
             price_range = max([x['close'] for x in candles]) - min([x['close'] for x in candles])
-            moving_avgs = self.get_moving_averages(candles, 10)
+            moving_avgs = self.get_moving_averages(candles, 20)
 
-            plt.figure(figsize=(20, 10))
-            plt.plot(np.array([x['dt'] for x in candles]), np.array([x['close'] for x in candles]))
-            plt.plot(np.array([x['dt'] for x in moving_avgs]), np.array([x['close'] for x in moving_avgs]))
-            plt.savefig('./graphs/{}-snapshot.jpg'.format(market_symbol))
-            plt.clf()
-
-            # Skip if trending less than 5% upwards
-            if (moving_avgs[-1]['close'] - moving_avgs[-2]['close']) / price_range < 0.05:
+            # Skip if trending less than 10% upwards
+            if (moving_avgs[-1]['close'] - moving_avgs[-2]['close']) / price_range <= 0.1:
                 continue 
 
             for interval in intervals:
@@ -207,16 +193,10 @@ class Robot():
                 candles = [{ 'dt': dt.datetime.fromtimestamp(x[0] / 1000), 'open': float(x[1]), 'close': float(x[4]), 'volume': float(x[5]) } for x in candles]
                 candles = candles[:-1]
                 price_range = max([x['close'] for x in candles]) - min([x['close'] for x in candles])
-                moving_avgs = self.get_moving_averages(candles, 10)
+                moving_avgs = self.get_moving_averages(candles, 20)
 
-                plt.figure(figsize=(20, 10))
-                plt.plot(np.array([x['dt'] for x in candles]), np.array([x['close'] for x in candles]))
-                plt.plot(np.array([x['dt'] for x in moving_avgs]), np.array([x['close'] for x in moving_avgs]))
-                plt.savefig('./graphs/{}-{}-snapshot.jpg'.format(market_symbol, interval))
-                plt.clf()
-
-                # Skip if trending less than 10% upwards for last 10% of graph
-                if (moving_avgs[-1]['close'] - moving_avgs[-2]['close']) / price_range < 0.1:
+                # Skip if trending less than 10% upwards
+                if (moving_avgs[-1]['close'] - moving_avgs[-2]['close']) / price_range <= 0.1:
                     continue
 
                 # Find extremas
@@ -225,43 +205,20 @@ class Robot():
                 extremas = sorted(extremas, key=lambda x: x['dt']) 
 
                 # Look for HH's and HL's
-                if not self.has_hhs_and_hls(extremas):
+                hh_hl_count = self.get_hhs_and_hls(extremas)
+                if hh_hl_count < 2:
                     continue
-
-                plt.figure(figsize=(20, 10))
-                plt.plot(np.array([x['dt'] for x in extremas]), np.array([x['close'] for x in extremas]))
-                plt.plot(np.array([x['dt'] for x in moving_avgs]), np.array([x['close'] for x in moving_avgs]))
-                plt.savefig('./graphs/{}-{}-uptrend.jpg'.format(market_symbol, interval))
-                plt.clf()
 
                 # Calculate average volume
                 avg_volume = sum([x['volume'] for x in candles]) / len(candles)
 
-                plt.figure(figsize=(20, 10))
-                plt.plot(np.array([x['dt'] for x in candles]), np.array([x['volume'] for x in candles]))
-                plt.axhline(y=avg_volume, linestyle='--')
-                plt.savefig('./graphs/{}-{}-volumes.jpg'.format(market_symbol, interval))
-                plt.clf()
-
                 # Look for trade entry
                 try:
-                    pullback = self.find_pullback(market_symbol, interval, candles, moving_avgs, extremas, avg_volume)
-
-                    plt.figure(figsize=(20, 10))
-                    plt.plot(np.array([x['dt'] for x in candles]), np.array([x['close'] for x in candles]))
-                    plt.plot(np.array([x['dt'] for x in pullback]), np.array([x['close'] for x in pullback]), linewidth=3)
-                    plt.savefig('./graphs/{}-{}-pullback-{}.jpg'.format(market_symbol, interval, dt.datetime.now().strftime('%H%M')))
-                    plt.clf()
+                    pullback = self.find_pullback(market_symbol, interval, candles, moving_avgs, extremas, avg_volume, price_range, hh_hl_count)
 
                     self.calc_pullback_trade(market_symbol, interval, pullback)
 
                     if self.trading:
-                        plt.figure(figsize=(20, 10))
-                        plt.plot(np.array([x['dt'] for x in candles]), np.array([x['close'] for x in candles]))
-                        plt.plot(np.array([x['dt'] for x in pullback]), np.array([x['close'] for x in pullback]), linewidth=3)
-                        plt.savefig('./graphs/{}-{}-trade-{}.jpg'.format(market_symbol, interval, dt.datetime.now().strftime('%H%M')))
-                        plt.clf()
-
                         df_candles = pd.DataFrame(candles)
                         df_candles.to_csv('./test_data/{}_{}_{}_candles.csv'.format(dt.datetime.now().strftime('%Y%m%d_%H%M'), market_symbol, interval))
                         return
@@ -329,7 +286,7 @@ class Robot():
                     h[x-1] > h[x])))]
         return get_extrema(True), get_extrema(False)
 
-    def has_hhs_and_hls(self, extremas):
+    def get_hhs_and_hls(self, extremas):
         e_max = 0
         e_min = 0
         chain = 0
@@ -353,11 +310,7 @@ class Robot():
                         chain += 1
                     else:
                         break
-        # Should be part of jagged uptrend
-        # Require minimum 2: while there COULD be a reversal, we want to wait until trend is established
-        # Require maximum 5: we want to jump in on 1st or 2nd wave (max 4), but there might be a rogue extrema, so this is loosened a bit
-        # TODO: Change to 2 <= chain <= 4?
-        return 2 <= chain <= 5
+        return chain
 
     def is_acceptable_risk_reward(self, market_symbol, buy_price, price_range, stop_price, profit_price):
         fee = self.portfolio['trade_fee']
@@ -394,19 +347,22 @@ class Robot():
                 }
             self.trading = True
 
-    def find_pullback(self, market_symbol, interval, candles, moving_avgs, extremas, avg_volume):
+    def find_pullback(self, market_symbol, interval, candles, moving_avgs, extremas, avg_volume, price_range, hh_hl_count):
         # End on minima
         assert extremas[-1]['category'] == 'minima', 'does not end on minima'
 
         # Last candle should be bullish
         assert candles[-1]['close'] > extremas[-1]['close'], 'last candle not bullish (close)'
 
-        candle_range = candles[-1]['close'] - candles[-1]['open']
-        c_range = abs(extremas[-1]['close'] - extremas[-1]['open'])
-        assert candle_range / c_range >= 0.5, 'last candle not bullish (range)'
+        # candle_range = candles[-1]['close'] - candles[-1]['open']
+        # c_range = abs(extremas[-1]['close'] - extremas[-1]['open'])
+        # assert candle_range / c_range >= 0.5, 'last candle not bullish (range)'
 
-        # C volume should be less than or equal to avg (+5%)
-        assert extremas[-1]['volume'] / avg_volume <= 1.05, 'above avg volume'
+        # Last candle should be higher volume than C
+        assert candles[-1]['volume'] > extremas[-1]['volume'], 'last candle not bullish (volume)'
+
+        # C volume should be less than avg
+        assert extremas[-1]['volume'] / avg_volume < 1, 'not below avg volume'
 
         # C should be above MA line
         ma_end = moving_avgs[-1]
@@ -431,11 +387,9 @@ class Robot():
         len_ab = abs(math.sqrt(((n_b['close'] - n_a['close']) ** 2) + ((n_b['dt'] - n_a['dt']) ** 2)))
         len_bc = abs(math.sqrt(((n_c['close'] - n_b['close']) ** 2) + ((n_c['dt'] - n_b['dt']) ** 2)))
 
-        print(interval, '*', len_ab, len_bc, len_bc / len_ab)
-
         # Should match fibonacci rule
         # assert 0.38 <= len_bc / len_ab <= 0.618, 'failed fibonacci rule'
-        assert 0.3 <= len_bc / len_ab <= 0.7, 'failed fibonacci threshold'
+        assert 0.38 <= len_bc / len_ab <= 0.62, 'failed fibonacci threshold'
 
         a = extremas[-3]
         b = extremas[-2]
