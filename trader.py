@@ -172,7 +172,7 @@ class Trader():
         self.trading = False
 
     def scan_markets(self):
-        intervals = ['5m', '3m', '1m']
+        intervals = ['15m', '5m', '3m', '1m']
 
         for market_symbol in self.markets:
             print('=> Searching', market_symbol)
