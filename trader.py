@@ -181,7 +181,7 @@ class Trader():
             candles = client.get_klines(symbol=market_symbol, interval='30m', limit=100)
             candles = [{ 'dt': dt.datetime.fromtimestamp(x[0] / 1000), 'close': float(x[4]), 'volume': float(x[5]) } for x in candles]
             price_range = max([x['close'] for x in candles]) - min([x['close'] for x in candles])
-            moving_avgs = self.get_moving_averages(candles, 20)
+            moving_avgs = self.get_moving_averages(candles, 10)
 
             # Skip if trending less than 10% upwards
             if (moving_avgs[-1]['close'] - moving_avgs[-2]['close']) / price_range <= 0.1:
