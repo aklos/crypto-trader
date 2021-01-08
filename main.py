@@ -3,7 +3,6 @@ load_dotenv(verbose=True)
 
 from bnc import client
 from trader import Trader
-from analyzer import Analyzer
 import datetime as dt
 
 if __name__ == '__main__':
