@@ -60,17 +60,17 @@ class Trader():
         # Good ATR
         tickers = [x for x in tickers if self.calc_atr(x) > min_atr]
         # FIXME: this grabs ETHUSDT for testing purposes
-        tickers = [x for x in tickers if x == 'BTCUSDT'] 
-        # if not next((x for x in tickers if x['symbol'] == 'BTCUSDT'), None):
-        #     tickers.append({ 'symbol': 'BTCUSDT'})
-        if len(tickers) == 0:
-            tickers.append({ 'symbol': 'BTCUSDT' })
+        # tickers = [x for x in tickers if x == 'BTCUSDT'] 
+        if not next((x for x in tickers if x['symbol'] == 'BTCUSDT'), None):
+            tickers.append({ 'symbol': 'BTCUSDT'})
+        # if len(tickers) == 0:
+        #     tickers.append({ 'symbol': 'BTCUSDT' })
         return [x['symbol'] for x in tickers]
 
     def scan_market_loop(self):
-        # sleep_time = self.get_time_to_next_time_period()
-        # print('=> Starting in {} seconds'.format(sleep_time.seconds))
-        # time.sleep(sleep_time.seconds)
+        sleep_time = self.get_time_to_next_time_period()
+        print('=> Starting in {} seconds'.format(sleep_time.seconds))
+        time.sleep(sleep_time.seconds)
 
         while (True):
             self.markets = self.get_active_markets()
@@ -78,8 +78,6 @@ class Trader():
             self.scan_markets()
             if self.trading:
                 break
-            if True:
-                return
             sleep_time = self.get_time_to_next_time_period()
             print('=> Sleeping for {} seconds'.format(sleep_time.seconds))
             time.sleep(sleep_time.seconds)
@@ -197,7 +195,7 @@ class Trader():
 
         # Plot RSI
         df = self.calculate_rsi(df)
-        df.rsi.plot(ax=ax, legend='RSI')
+        df.rsi.plot(ax=ax2, legend='RSI')
         fplt.set_y_range(0, 100, ax=ax2)
         fplt.add_band(30, 70, ax=ax2)
 
@@ -210,8 +208,7 @@ class Trader():
             fplt.add_line([min_date, level['value']], [max_date, level['value']], ax=ax)
         def save():
             fplt.screenshot(open('./graphs/{}.png'.format(symbol), 'wb'))
-            fplt.app.exit()
-        fplt.timer_callback(save, 1, single_shot=True) # wait some until we're rendered
+        fplt.timer_callback(save, 5, single_shot=True) # wait some until we're rendered
         fplt.show()
 
     def scan_markets(self):
@@ -253,16 +250,16 @@ class Trader():
             lows = [x['low'] for x in extremas]
 
             def compare_prices(x, y, range):
-                return abs(x - y) / range <= 0.01
+                return abs(x - y) / range <= 0.03
 
             for high in highs:
-                if sum([1 for x in highs if compare_prices(x, high, price_range)]) > 2:
-                    if next((x for x in levels if abs(high - x['value']) / price_range <= 0.01), None) is None:
+                if sum([1 for x in highs if compare_prices(x, high, price_range)]) > 3:
+                    if next((x for x in levels if abs(high - x['value']) / price_range <= 0.03), None) is None:
                         levels.append({ 'swing': 'high', 'value': high })
 
             for low in lows:
-                if sum([1 for x in lows if compare_prices(x, low, price_range)]) > 2:
-                    if next((x for x in levels if abs(low - x['value']) / price_range <= 0.01), None) is None:
+                if sum([1 for x in lows if compare_prices(x, low, price_range)]) > 3:
+                    if next((x for x in levels if abs(low - x['value']) / price_range <= 0.03), None) is None:
                         levels.append({ 'swing': 'low', 'value': low })
 
             # Calculate RSI and AD
@@ -271,11 +268,12 @@ class Trader():
             rsi = df.rsi.to_list()
             ad = self.calculate_accumulation_distribution(df).to_list()
 
-            print(rsi[-1], ad[-1])
-            # print(abspath('./alert.wav'))
-            playsound('./alert.wav')
+            hh_hls = self.get_hh_and_hl_length(extremas)
+
+            print(rsi[-1], ad[-1], hh_hls)
 
             if rsi[-2] < 30 and rsi[-1] > 30 and ad[-1] > 0:
+                playsound('./alert.wav')
                 self.draw_candlestick_chart(market_symbol, candles, levels)
 
     def calc_atr(self, ticker):
