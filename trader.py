@@ -252,15 +252,10 @@ class Trader():
             def compare_prices(x, y, range):
                 return abs(x - y) / range <= 0.03
 
-            for high in highs:
-                if sum([1 for x in highs if compare_prices(x, high, price_range)]) > 3:
-                    if next((x for x in levels if abs(high - x['value']) / price_range <= 0.03), None) is None:
-                        levels.append({ 'swing': 'high', 'value': high })
-
-            for low in lows:
-                if sum([1 for x in lows if compare_prices(x, low, price_range)]) > 3:
-                    if next((x for x in levels if abs(low - x['value']) / price_range <= 0.03), None) is None:
-                        levels.append({ 'swing': 'low', 'value': low })
+            for extrema in extremas:
+                if sum([1 for x in extremas if compare_prices(x, extrema, price_range)]) > 3:
+                    if next((x for x in levels if abs(extrema - x['value']) / price_range <= 0.03), None) is None:
+                        levels.append({ 'value': extrema })
 
             # Calculate RSI and AD
             df = pd.DataFrame(candles)
@@ -272,9 +267,9 @@ class Trader():
 
             print(rsi[-1], ad[-1], hh_hls)
 
-            if rsi[-2] < 30 and rsi[-1] > 30 and ad[-1] > 0:
-                playsound('./alert.wav')
-                self.draw_candlestick_chart(market_symbol, candles, levels)
+            # if rsi[-2] < 30 and rsi[-1] > 30:
+                # playsound('./alert.wav')
+            self.draw_candlestick_chart(market_symbol, candles, levels)
 
     def calc_atr(self, ticker):
         # FIXME: This is TR calculation, not ATR
