@@ -183,12 +183,21 @@ class Trader():
         orders = client.get_open_orders(symbol=self.trade['market_symbol'])
 
         for order in orders:
-            client.cancel_order(symbol=self.trade['market_symbol'], orderId=order['orderId'])
+            try:
+                client.cancel_order(symbol=self.trade['market_symbol'], orderId=order['orderId'])
+            except:
+                pass
 
-        coins = float(client.get_asset_balance(asset=self.trade['market_symbol'].replace('USDT', ''))['free'])
-        coins = coins * 0.995
-        coins = round(coins, self.trade['precision'])
-        client.order_market_sell(symbol=self.trade['market_symbol'], quantity=coins)
+        def force_sell(sub = 0.005):
+            try:
+                coins = float(client.get_asset_balance(asset=self.trade['market_symbol'].replace('USDT', ''))['free'])
+                coins = coins * (1 - sub)
+                coins = round(coins, self.trade['precision'])
+                client.order_market_sell(symbol=self.trade['market_symbol'], quantity=coins)
+            except:
+                force_sell(sub + 0.001)
+
+        force_sell()
 
         self.portfolio = self.get_portfolio()
         self.trade = {}
