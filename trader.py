@@ -54,8 +54,13 @@ class Trader():
         return [x['symbol'] for x in tickers]
 
     def scan_market_loop(self):
-        last_trade = self.tradebook.tail(1).iloc[0]
-        if len(client.get_open_orders(symbol=last_trade['market'])) == 0:
+        last_trade = None
+        try:
+            last_trade = self.tradebook.tail(1).iloc[0]
+        except:
+            pass
+
+        if last_trade is None or len(client.get_open_orders(symbol=last_trade['market'])) == 0:
             sleep_time = self.get_time_to_next_time_period()
             print('=> Starting in {} seconds'.format(sleep_time.seconds))
             time.sleep(sleep_time.seconds)
@@ -82,7 +87,7 @@ class Trader():
         if self.trade is not None:
             print('=> Making a trade in {} at {}'.format(self.trade['market_symbol'], self.trade['interval']))
 
-            if len(client.get_open_orders(symbol=last_trade['market'])) == 0:
+            if last_trade is None or len(client.get_open_orders(symbol=last_trade['market'])) == 0:
                 self.buy_coins()
 
             while (True):
