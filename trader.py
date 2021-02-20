@@ -4,7 +4,7 @@ import datetime as dt
 import numpy as np
 import math
 import pandas as pd
-import finplot as fplt
+# import finplot as fplt
 from findiff import FinDiff
 from bnc import client
 # from playsound import playsound
@@ -235,31 +235,31 @@ class Trader():
         df['rsi'] = 100 - (100/(1+rs))
         return df
 
-    def draw_candlestick_chart(self, symbol, candles, levels):
-        os.system('mkdir -p ./graphs')
-        ax, ax2 = fplt.create_plot(symbol, rows=2)
-        df = pd.DataFrame(candles)
-        df = df.astype({'time':'datetime64[ns]'})
-        fplt.candlestick_ochl(df[['time', 'open', 'close', 'high', 'low']])
+    # def draw_candlestick_chart(self, symbol, candles, levels):
+    #     os.system('mkdir -p ./graphs')
+    #     ax, ax2 = fplt.create_plot(symbol, rows=2)
+    #     df = pd.DataFrame(candles)
+    #     df = df.astype({'time':'datetime64[ns]'})
+    #     fplt.candlestick_ochl(df[['time', 'open', 'close', 'high', 'low']])
 
-        # Plot MA
-        # fplt.plot(df['time'], df['close'].rolling(25).mean(), ax=ax, legend='ma-25')
+    #     # Plot MA
+    #     # fplt.plot(df['time'], df['close'].rolling(25).mean(), ax=ax, legend='ma-25')
 
-        # Plot RSI
-        df = self.calculate_rsi(df)
-        df.rsi.plot(ax=ax2, legend='RSI')
-        fplt.set_y_range(0, 100, ax=ax2)
-        fplt.add_band(30, 70, ax=ax2)
+    #     # Plot RSI
+    #     df = self.calculate_rsi(df)
+    #     df.rsi.plot(ax=ax2, legend='RSI')
+    #     fplt.set_y_range(0, 100, ax=ax2)
+    #     fplt.add_band(30, 70, ax=ax2)
 
-        # Plot accu/dist
-        # self.plot_accumulation_distribution(df, ax3)
+    #     # Plot accu/dist
+    #     # self.plot_accumulation_distribution(df, ax3)
 
-        min_date = min([x['time'] for x in candles])
-        max_date = max([x['time'] for x in candles])
-        fplt.add_line([min_date, 50], [max_date, 50], ax=ax2, color='#0000bb')
-        for level in levels:
-            fplt.add_line([min_date, level['value']], [max_date, level['value']], ax=ax)
-        fplt.show()
+    #     min_date = min([x['time'] for x in candles])
+    #     max_date = max([x['time'] for x in candles])
+    #     fplt.add_line([min_date, 50], [max_date, 50], ax=ax2, color='#0000bb')
+    #     for level in levels:
+    #         fplt.add_line([min_date, level['value']], [max_date, level['value']], ax=ax)
+    #     fplt.show()
 
     def scan_markets(self):
         for market_symbol in self.markets:
