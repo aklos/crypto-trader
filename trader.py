@@ -44,7 +44,7 @@ class Trader():
         # Not in ignore list
         tickers = [x for x in tickers if x['symbol'] not in ignore_list]
         # Fluctuating price ranges
-        tickers = [x for x in tickers if abs(float(x['priceChangePercent'])) >= min_change_percent]
+        tickers = [x for x in tickers if float(x['priceChangePercent']) >= min_change_percent]
         # High volume
         tickers = [x for x in tickers if float(x['volume']) >= min_volume]
         # High amount of trades
