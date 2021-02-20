@@ -20,4 +20,6 @@ def safe_loop(loop_count = 0):
             safe_loop(loop_count + 1)
 
 if __name__ == '__main__':
-    safe_loop()
+    t = Trader()
+    print('$', t.portfolio['balance'])
+    t.scan_market_loop()
