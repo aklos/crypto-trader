@@ -7,11 +7,11 @@ import pandas as pd
 import finplot as fplt
 from findiff import FinDiff
 from bnc import client
-from playsound import playsound
+# from playsound import playsound
 
 min_balance = 10
 
-ignore_list = ['XRPUPUSDT']
+ignore_list = ['XRPUPUSDT', 'BTCUSDT']
 
 min_change_percent = 2
 min_volume = 500000
@@ -51,12 +51,6 @@ class Trader():
         tickers = [x for x in tickers if float(x['count']) >= min_trades]
         # Good ATR
         tickers = [x for x in tickers if self.calc_atr(x) > min_atr]
-        # FIXME: this grabs ETHUSDT for testing purposes
-        # tickers = [x for x in tickers if x == 'BTCUSDT'] 
-        if not next((x for x in tickers if x['symbol'] == 'BTCUSDT'), None):
-            tickers.append({ 'symbol': 'BTCUSDT'})
-        # if len(tickers) == 0:
-        #     tickers.append({ 'symbol': 'BTCUSDT' })
         return [x['symbol'] for x in tickers]
 
     def scan_market_loop(self):
@@ -81,7 +75,7 @@ class Trader():
                 'market_symbol': last_trade['market'],
                 'profit_price': last_trade['profit'],
                 'stop_price': last_trade['stop'],
-                'interval': '3m',
+                'interval': '5m',
                 'crossed_scale': False
             }
         
@@ -105,7 +99,7 @@ class Trader():
         self.scan_market_loop()
 
     def manage_trade(self):
-        [current_candle, candles] = self.get_candles(self.trade['market_symbol'], '3m', 300)
+        [current_candle, candles] = self.get_candles(self.trade['market_symbol'], '5m', 300)
 
         # Calculate RSI
         df = pd.DataFrame(candles)
@@ -120,21 +114,14 @@ class Trader():
             self.trade['crossed_scale'] = True
         elif percentage <= 0.75 and self.trade['crossed_scale'] is True:
             self.sell_coins()
-            playsound('./kaching.wav')
             return
 
         if rsi[-1] > 69:
             self.sell_coins()
-            playsound('./kaching.wav')
             return
 
         if len(client.get_open_orders(symbol=self.trade['market_symbol'])) == 0:
             new_portfolio = self.get_portfolio()
-
-            if new_portfolio['balance'] > self.portfolio['balance']:
-                playsound('./kaching.wav')
-            else:
-                playsound('./sad.wav')
 
             self.portfolio = new_portfolio
             self.trade = {}
@@ -153,7 +140,6 @@ class Trader():
             quantity = quantity - sub
             quantity = round(quantity, precision)
             client.order_oco_sell(symbol=self.trade['market_symbol'], quantity=quantity, price=price, stopPrice=stop, stopLimitPrice=stop_limit, stopLimitTimeInForce=client.TIME_IN_FORCE_GTC)
-            print('oco quantity', quantity)
         except:
             self.create_oco_order(price, stop, stop_limit, precision, step, sub + step)
 
@@ -168,7 +154,6 @@ class Trader():
         trades = client.get_recent_trades(symbol=self.trade['market_symbol'])
         coins = (balance / float(trades[0]['price'])) * 0.98
         coins = round(coins, precision)
-        print('quantity', coins, 'profit', self.trade['profit_price'], 'stop', self.trade['stop_price'])
         client.order_market_buy(symbol=self.trade['market_symbol'], quantity=coins)
 
         price = round(self.trade['profit_price'], precision_limit)
@@ -282,7 +267,7 @@ class Trader():
 
             levels = []
 
-            [current_candle, candles] = self.get_candles(market_symbol, '3m', 300)
+            [current_candle, candles] = self.get_candles(market_symbol, '5m', 300)
 
             # Find levels in current graph
             price_range = max([x['high'] for x in candles]) - min([x['low'] for x in candles])
@@ -319,25 +304,22 @@ class Trader():
             ad = self.calculate_accumulation_distribution(df)
             ad = ad.to_list()
 
-            print(rsi[-2], rsi[-1], ad[-1])
-
             if rsi[-2] <= 29 and rsi[-1] > 30 and ad[-1] > 0:
                 # Calculate win at next level above 
                 levels.sort(key=lambda x: x['value'])
                 profit_price = next((x for x in levels if x['value'] > current_candle['close'] and abs(current_candle['close'] - x['value']) / price_range > 0.05), None)
                 if profit_price is None:
                     continue
-                profit_price = profit_price['value'] - (price_range * 0.02)
+                profit_price = profit_price['value'] - (price_range * 0.01)
 
-                # Calculate loss at 3% of range below prev minimum
-                stop_price = lows[-1] - (price_range * 0.03)
+                # Calculate loss at 1% of range below prev minimum
+                stop_price = lows[-1] - (price_range * 0.01)
 
                 if self.is_acceptable_risk_reward(market_symbol, current_candle['close'], price_range, stop_price, profit_price):
-                    playsound('./alert.wav')
                     self.trading = True
                     self.trade = {
                         'market_symbol': market_symbol,
-                        'interval': '3m',
+                        'interval': '5m',
                         'buy_price': current_candle['close'],
                         'stop_price': stop_price,
                         'stop_price_limit': stop_price - (price_range * 0.01),
@@ -345,9 +327,6 @@ class Trader():
                         'crossed_scale': False
                     }
                     return
-                else:
-                    playsound('./nada.wav')
-            # self.draw_candlestick_chart(market_symbol, candles, levels)
 
     def calc_atr(self, ticker):
         # FIXME: This is TR calculation, not ATR
@@ -431,7 +410,5 @@ class Trader():
 
         # How much money lost if sold at stop price?
         risk = ((buy_price - stop_price) * coins) * (1 + fee)
-
-        print('risk/reward', risk, reward, 'fee', 2 * (balance * fee), 'ratio', reward / risk)
 
         return reward > (2 * (balance * fee)) and reward / risk >= 1.8
