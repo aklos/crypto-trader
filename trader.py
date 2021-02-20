@@ -315,10 +315,10 @@ class Trader():
                 profit_price = next((x for x in levels if x['value'] > current_candle['close'] and abs(current_candle['close'] - x['value']) / price_range > 0.05), None)
                 if profit_price is None:
                     continue
-                profit_price = profit_price['value'] - (price_range * 0.01)
+                profit_price = profit_price['value'] - (price_range * 0.02)
 
-                # Calculate loss at 1% of range below prev minimum
-                stop_price = lows[-1] - (price_range * 0.01)
+                # Calculate loss at 3% of range below current price
+                stop_price = current_candle['close'] - (price_range * 0.03)
 
                 if self.is_acceptable_risk_reward(market_symbol, current_candle['close'], price_range, stop_price, profit_price):
                     self.trading = True
