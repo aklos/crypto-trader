@@ -188,16 +188,14 @@ class Trader():
             except:
                 pass
 
-        def force_sell(sub = 0.005):
-            try:
-                coins = float(client.get_asset_balance(asset=self.trade['market_symbol'].replace('USDT', ''))['free'])
-                coins = coins * (1 - sub)
-                coins = round(coins, self.trade['precision'])
-                client.order_market_sell(symbol=self.trade['market_symbol'], quantity=coins)
-            except:
-                force_sell(sub + 0.001)
-
-        force_sell()
+        info = client.get_exchange_info()
+        filters = [x['filters'] for x in info['symbols'] if x['symbol'] == self.trade['market_symbol']][0]
+        step_size = next((x['stepSize'] for x in filters if x['filterType'] == 'LOT_SIZE'))
+        precision = int(round(-math.log(float(step_size), 10), 0))
+        coins = float(client.get_asset_balance(asset=self.trade['market_symbol'].replace('USDT', ''))['free'])
+        coins = coins * 0.995
+        coins = round(coins, precision)
+        client.order_market_sell(symbol=self.trade['market_symbol'], quantity=coins)
 
         self.portfolio = self.get_portfolio()
         self.trade = {}
