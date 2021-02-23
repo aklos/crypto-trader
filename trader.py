@@ -156,10 +156,19 @@ class Trader():
         tick_size = next((x['tickSize'] for x in filters if x['filterType'] == 'PRICE_FILTER'))
         precision_limit = int(round(-math.log(float(tick_size), 10), 0))
         precision = int(round(-math.log(float(step_size), 10), 0))
-        trades = client.get_recent_trades(symbol=self.trade['market_symbol'])
-        coins = (balance / float(trades[0]['price'])) * 0.98
-        coins = round(coins, precision)
-        client.order_market_buy(symbol=self.trade['market_symbol'], quantity=coins)
+
+        for x in range(3):
+            try:
+                trades = client.get_recent_trades(symbol=self.trade['market_symbol'])
+                coins = (balance / float(trades[0]['price'])) * 0.98
+                coins = round(coins, precision)
+                client.order_market_buy(symbol=self.trade['market_symbol'], quantity=coins)
+                break
+            except Exception as e:
+                if x == 2:
+                    raise e
+                else:
+                    time.sleep(1)
 
         price = round(self.trade['profit_price'], precision_limit)
         stop = round(self.trade['stop_price'], precision_limit)
@@ -193,9 +202,18 @@ class Trader():
         step_size = next((x['stepSize'] for x in filters if x['filterType'] == 'LOT_SIZE'))
         precision = int(round(-math.log(float(step_size), 10), 0))
         coins = float(client.get_asset_balance(asset=self.trade['market_symbol'].replace('USDT', ''))['free'])
-        coins = coins * 0.995
-        coins = round(coins, precision)
-        client.order_market_sell(symbol=self.trade['market_symbol'], quantity=coins)
+
+        for x in range(5):
+            try:
+                coins = coins * (1 - 0.005 - (0.001 * x))
+                coins = round(coins, precision)
+                client.order_market_sell(symbol=self.trade['market_symbol'], quantity=coins)
+                break
+            except Exception as e:
+                if x == 4:
+                    raise e
+                else:
+                    time.sleep(1)
 
         self.portfolio = self.get_portfolio()
         self.trade = {}
